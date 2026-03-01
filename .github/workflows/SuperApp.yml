@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: '0 6 * * *' # 每天UTC时间06:00运行（北京时间14:00）
   workflow_dispatch:  # 允许手动触发
+
+permissions:
+  contents: write
+  actions: write
   
 jobs:
   add_time_check_in:
@@ -46,3 +50,23 @@ jobs:
             *.png
             *.json
           retention-days: 1
+
+      # 🕐 更新运行时间记录
+      - name: Update Time
+        working-directory: scripts
+        run: |
+          echo "Last run: $(TZ='Asia/Shanghai' date '+%Y-%m-%d %H:%M:%S CST')" > time.txt
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add time.txt
+          git diff --cached --quiet || git commit -m "🕐 更新运行时间"
+          git push || true
+
+      # 🧹 清理超24小时的运行记录
+      - name: Clean up old workflow runs
+        uses: MajorScruffy/delete-old-workflow-runs@v0.3.0
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          repository: ${{ github.repository }}
+          older-than-seconds: 86400          
